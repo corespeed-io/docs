@@ -1,0 +1,17 @@
+{
+  "root": true,
+  "title": "Zypher SDK",
+  "icon": "CoreSpeedSymbol",
+  "description": "Documentation for Zypher Agent framework",
+  "pages": [
+    "---Get Started---",
+    "index",
+    "quick-start",
+    "core-concepts",
+    "---Usage---",
+    "guides",
+    "examples",
+    "---Reference---",
+    "[CodeXml][API Reference](https://jsr.io/@zypher/agent/doc)"
+  ]
+}
