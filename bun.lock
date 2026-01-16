@@ -7,6 +7,7 @@
       "dependencies": {
         "@base-ui/react": "^1.0.0",
         "@opennextjs/cloudflare": "^1.14.8",
+        "@orama/orama": "^3.1.18",
         "foxact": "^0.2.49",
         "fumadocs-core": "16.3.2",
         "fumadocs-mdx": "14.2.2",

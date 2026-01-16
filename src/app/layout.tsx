@@ -1,5 +1,7 @@
 import "@/app/global.css";
+
 import { RootProvider } from "fumadocs-ui/provider/next";
+import SearchDialog from '@/components/search';
 
 import { Inter } from "next/font/google";
 import { cn } from "@/lib/cn";
@@ -25,7 +27,9 @@ export default function Layout({ children }: LayoutProps<"/">) {
         />
       </head>
       <body className={cn("flex flex-col min-h-screen", inter.className)}>
-        <RootProvider theme={{ enabled: false }}>{children}</RootProvider>
+        <RootProvider theme={{ enabled: false }} search={{
+    SearchDialog,
+  }}>{children}</RootProvider>
       </body>
     </html>
   );
