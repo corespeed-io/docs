@@ -1,5 +1,5 @@
+import { CoreSpeedLogo } from "@/components/icons/corespeed";
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
-import { ZypherIcon } from "@/components/icons/zypher";
 
 /**
  * Shared layout configurations
@@ -14,15 +14,7 @@ export function baseOptions(): BaseLayoutProps {
       enabled: false,
     },
     nav: {
-      title: <ZypherIcon className="text-black" />,
+      title: <CoreSpeedLogo className="text-black" />,
     },
-    // see https://fumadocs.dev/docs/ui/navigation/links
-    links: [
-      {
-        text: "API Reference",
-        url: "https://jsr.io/@zypher/agent/doc",
-        external: true,
-      },
-    ],
   };
 }
