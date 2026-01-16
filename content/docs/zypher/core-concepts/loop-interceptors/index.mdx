@@ -66,9 +66,9 @@ loopInterceptorManager.register(new ToolExecutionInterceptor(mcpServerManager));
 
 Zypher Agent provides several pre-built interceptors for common control patterns:
 
-- **[MaxTokensInterceptor](/docs/core-concepts/loop-interceptors/built-in-interceptors#maxtokensinterceptor)** - Automatically continues conversations when responses are truncated
-- **[ErrorDetectionInterceptor](/docs/core-concepts/loop-interceptors/built-in-interceptors#errordetectioninterceptor)** - Detects and handles code errors using configurable detectors  
-- **[ToolExecutionInterceptor](/docs/core-concepts/loop-interceptors/built-in-interceptors#toolexecutioninterceptor)** - Handles tool execution with optional approval workflows
+- **[MaxTokensInterceptor](/zypher/core-concepts/loop-interceptors/built-in-interceptors#maxtokensinterceptor)** - Automatically continues conversations when responses are truncated
+- **[ErrorDetectionInterceptor](/zypher/core-concepts/loop-interceptors/built-in-interceptors#errordetectioninterceptor)** - Detects and handles code errors using configurable detectors  
+- **[ToolExecutionInterceptor](/zypher/core-concepts/loop-interceptors/built-in-interceptors#toolexecutioninterceptor)** - Handles tool execution with optional approval workflows
 
 ```typescript
 import { 
@@ -86,7 +86,7 @@ loopInterceptorManager.register(new ErrorDetectionInterceptor());
 loopInterceptorManager.register(new ToolExecutionInterceptor(mcpServerManager));
 ```
 
-For detailed configuration and examples, see the [Built-in Interceptors](/docs/core-concepts/loop-interceptors/built-in-interceptors) guide.
+For detailed configuration and examples, see the [Built-in Interceptors](/zypher/core-concepts/loop-interceptors/built-in-interceptors) guide.
 
 ## How Interceptors Work
 
@@ -322,4 +322,4 @@ class RateLimitInterceptor extends LoopInterceptor {
 
 ---
 
-Loop interceptors provide powerful control over agent behavior. Next, explore [advanced deployment patterns](/docs/guides/deployment) or learn about [creating custom tools](/docs/guides/creating-custom-tools).
+Loop interceptors provide powerful control over agent behavior. Next, explore [advanced deployment patterns](/zypher/guides/deployment) or learn about [creating custom tools](/zypher/guides/creating-custom-tools).
