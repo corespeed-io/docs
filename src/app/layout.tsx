@@ -3,6 +3,8 @@ import { RootProvider } from "fumadocs-ui/provider/next";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { cn } from "@/lib/cn";
+import { source } from "@/lib/source";
+import { DocsLayout } from "@/components/layout/docs";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -73,7 +75,11 @@ export default function Layout({ children }: LayoutProps<"/">) {
         />
       </head>
       <body className={cn("flex flex-col min-h-screen", inter.className)}>
-        <RootProvider theme={{ enabled: false }}>{children}</RootProvider>
+        <RootProvider theme={{ enabled: false }}>
+          <DocsLayout tree={source.pageTree}>
+            {children}
+          </DocsLayout>
+        </RootProvider>
       </body>
     </html>
   );

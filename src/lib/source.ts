@@ -11,7 +11,7 @@ const iconsMap = {
 }
 
 export const source = loader({
-  baseUrl: "/docs",
+  baseUrl: "/",
   source: docs.toFumadocsSource(),
   icon(icon) {
     if (!icon) {
