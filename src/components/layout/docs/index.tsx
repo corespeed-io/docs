@@ -1,6 +1,7 @@
+import { CoreSpeedLogo } from "@/components/icons/corespeed";
 import type * as PageTree from "fumadocs-core/page-tree";
 import { TreeContextProvider } from "fumadocs-ui/contexts/tree";
-import { ArrowUpRight, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import Link from "next/link";
 import {
   type ComponentProps,
@@ -8,13 +9,12 @@ import {
   type ReactNode,
   useMemo,
 } from "react";
-import { ZypherIcon } from "@/components/icons/zypher";
 import { cn } from "../../../lib/cn";
 import { buttonVariants } from "../../ui/button";
 import { SearchToggle } from "../search-toggle";
 import type { BaseLayoutProps } from "../shared";
 import type { SidebarPageTreeComponents } from "../sidebar/page-tree";
-import { type GetSidebarTabsOptions, getSidebarTabs } from "../sidebar/tabs";
+import { getSidebarTabs, type GetSidebarTabsOptions } from "../sidebar/tabs";
 import {
   SidebarTabsDropdown,
   type SidebarTabWithProps,
@@ -29,7 +29,6 @@ import {
   Sidebar,
   SidebarContent,
   SidebarDrawer,
-  SidebarItem,
   SidebarPageTree,
   SidebarTrigger,
   SidebarViewport,
@@ -125,18 +124,11 @@ export function DocsLayout({
           <div className="flex flex-col border-l border-outline-low">
             <div className="flex px-4 border-b py-6 border-outline-low">
               <Link href={"/"} className="text-[0.9375rem] me-auto">
-                <ZypherIcon />
+                <CoreSpeedLogo className="w-[199px]" />
               </Link>
               {nav.children}
             </div>
             <SidebarSearch />
-            <SidebarItem
-              href="https://jsr.io/@zypher/agent/doc"
-              className="flex items-center justify-between"
-            >
-              API Reference
-              <ArrowUpRight className="size-4" />
-            </SidebarItem>
             {tabs.length > 0 && tabMode === "auto" && (
               <SidebarTabsDropdown options={tabs} />
             )}
@@ -145,8 +137,8 @@ export function DocsLayout({
           {viewport}
         </SidebarContent>
         <SidebarDrawer>
-          <div className="h-(--fd-header-height) gap-3 pl-2 py-2 border-b border-outline-low border-s">
-            <div className="flex text-text-high items-center">
+          <div className="gap-3 py-2 border-outline-low border-s">
+            <div className="flex text-text-high items-center pl-2">
               <SidebarTrigger
                 className={cn(
                   buttonVariants({
@@ -159,7 +151,9 @@ export function DocsLayout({
                 <Menu />
               </SidebarTrigger>
             </div>
-            {tabs.length > 0 && <SidebarTabsDropdown options={tabs} />}
+            {tabs.length > 0 && (
+              <SidebarTabsDropdown className="w-full my-3" options={tabs} />
+            )}
             {banner}
           </div>
           {viewport}
@@ -180,7 +174,7 @@ export function DocsLayout({
                   className="[grid-area:header] sticky top-(--fd-docs-row-1) z-30 flex items-center ps-4  border-b transition-colors border-outline-low h-(--fd-header-height) md:hidden max-md:layout:[--fd-header-height:--spacing(14)] data-[transparent=false]:bg-bg-b1"
                 >
                   <Link href="/">
-                    <ZypherIcon />
+                    <CoreSpeedLogo className="w-[199px]" />
                   </Link>
                   <div className="flex-1">{nav.children}</div>
                   <SearchToggle className="p-2 text-text-high" hideIfDisabled />

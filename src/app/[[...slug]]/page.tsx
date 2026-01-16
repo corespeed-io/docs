@@ -1,0 +1,65 @@
+import { createRelativeLink } from "fumadocs-ui/mdx";
+
+import type { Metadata } from "next";
+import { notFound, redirect } from "next/navigation";
+import {
+  DocsBody,
+  DocsDescription,
+  DocsPage,
+  DocsTitle,
+} from "@/components/layout/docs/page";
+import { source } from "@/lib/source";
+import { getMDXComponents } from "@/mdx-components";
+import { A } from "@/modules/mdx-components/a";
+
+export default async function Page(props: PageProps<"/[[...slug]]">) {
+  const params = await props.params;
+  const page = source.getPage(params.slug);
+  if (!page) redirect("/zypher");
+
+  const MDXContent = page.data.body;
+
+  return (
+    <DocsPage toc={page.data.toc}>
+      <DocsTitle className="font-mono">{page.data.title}</DocsTitle>
+      <DocsDescription className="text-sm text-text-med">
+        {page.data.description}
+      </DocsDescription>
+      <DocsBody>
+        <MDXContent
+          className="prose prose-sm"
+          components={getMDXComponents({
+            // this allows you to link to other pages with relative file paths
+            a: createRelativeLink(source, page, A),
+          })}
+        />
+      </DocsBody>
+    </DocsPage>
+  );
+}
+
+export async function generateStaticParams() {
+  const params = source.generateParams();
+  
+  // Ensure we include the root path for optional catch-all routes
+  const hasRootPath = params.some((p) => !p.slug || p.slug.length === 0);
+  
+  if (!hasRootPath) {
+    return [{ slug: undefined }, ...params];
+  }
+  
+  return params;
+}
+
+export async function generateMetadata(
+  props: PageProps<"/[[...slug]]">,
+): Promise<Metadata> {
+  const params = await props.params;
+  const page = source.getPage(params.slug);
+  if (!page) notFound();
+
+  return {
+    title: page.data.title,
+    description: page.data.description,
+  };
+}
