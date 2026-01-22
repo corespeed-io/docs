@@ -5,6 +5,8 @@ import { Inter } from "next/font/google";
 import { cn } from "@/lib/cn";
 import { source } from "@/lib/source";
 import { DocsLayout } from "@/components/layout/docs";
+import { SearchDialog } from "fumadocs-ui/components/dialog/search";
+import { DefaultSearchDialog } from "@/components/search";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -75,7 +77,7 @@ export default function Layout({ children }: LayoutProps<"/">) {
         />
       </head>
       <body className={cn("flex flex-col min-h-screen", inter.className)}>
-        <RootProvider theme={{ enabled: false }}>
+        <RootProvider theme={{ enabled: false }} search={{SearchDialog:DefaultSearchDialog}}>
           <DocsLayout tree={source.pageTree}>
             {children}
           </DocsLayout>

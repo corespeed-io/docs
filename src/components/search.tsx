@@ -23,7 +23,7 @@ function initOrama() {
   });
 }
 
-export default function DefaultSearchDialog(props: SharedProps) {
+export function DefaultSearchDialog(props: SharedProps) {
   const { locale } = useI18n(); // (optional) for i18n
   const { search, setSearch, query } = useDocsSearch({
     type: 'static',
@@ -40,7 +40,7 @@ export default function DefaultSearchDialog(props: SharedProps) {
           <SearchDialogInput />
           <SearchDialogClose />
         </SearchDialogHeader>
-        <SearchDialogList items={query.data !== 'empty' ? query.data : null} />
+        <SearchDialogList items={query?.data !== 'empty' ? query.data : null} />
       </SearchDialogContent>
     </SearchDialog>
   );
