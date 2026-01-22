@@ -269,14 +269,13 @@ export function SidebarItem({
 }) {
   const pathname = usePathname();
   const ref = useRef<HTMLAnchorElement>(null);
-  const { prefetch } = useSidebar();
   const active =
-    props.href !== undefined && isActive(props.href, pathname, false);
-
+  props.href !== undefined && isActive(props.href, pathname, false);
+  
   useAutoScroll(active, ref);
 
   return (
-    <Link ref={ref} data-active={active} prefetch={prefetch} {...props}>
+    <Link ref={ref} data-active={active} {...props}>
       {icon ?? (props.external ? <ExternalLink /> : null)}
       {children}
     </Link>
