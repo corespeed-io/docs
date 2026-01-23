@@ -70,7 +70,7 @@ export function HeaderDropdown({ children }: { children: ReactNode }) {
             <div className="border-outline-base tablet:border-b-0 flex items-center border-b-[0.5px] px-6 py-4 text-base">
               <Link
                 className="flex flex-1 items-center justify-center gap-2 py-4"
-                href="https://discord.gg/9CVxeWvsp9"
+                href="https://discord.gg/ZVwEWPQYrz"
                 target="_blank"
               >
                 <DiscordIcon className="size-4" />
