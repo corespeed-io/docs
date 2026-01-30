@@ -1,11 +1,7 @@
 ---
 title: LLM Providers
-description: Configure and use different large language model providers with Zypher Agent
+description: Zypher Agent supports multiple large language model providers through a unified interface. This allows you to switch between different LLM providers while maintaining the same agent behavior and API.
 ---
-
-# LLM Providers
-
-Zypher Agent supports multiple large language model providers through a unified interface. This allows you to switch between different LLM providers while maintaining the same agent behavior and API.
 
 ## What are LLM Providers?
 
@@ -64,10 +60,10 @@ const anthropicProvider = new AnthropicModelProvider({
 ```
 
 **Supported models:**
-- `claude-sonnet-4-20250514` - Latest Claude Sonnet 4 (most capable)
+- `claude-sonnet-4-5-20250929` - Latest Claude Sonnet 4.5 (recommended)
+- `claude-sonnet-4-20250514` - Claude Sonnet 4
 - `claude-3-7-sonnet-20250219` (or `claude-3-7-sonnet-latest`) - Advanced Sonnet 3.7
 - `claude-3-5-haiku-20241022` (or `claude-3-5-haiku-latest`) - Fast and efficient
-- `claude-3-haiku-20240307` - Previous generation Haiku
 - `claude-opus-4-1-20250805` - Latest Opus 4.1 (most powerful)
 - `claude-opus-4-20250514` - Claude Opus 4
 
@@ -102,14 +98,16 @@ const openaiProvider = new OpenAIModelProvider({
 ```
 
 **Supported models:**
-- `gpt-5` - Latest and most capable GPT model
+- `gpt-5.2` - Latest and most capable GPT model (recommended)
+- `gpt-5` - GPT-5 base model
 - `gpt-5-mini` - Smaller, faster variant of GPT-5
 - `gpt-4.1` - Advanced GPT-4.1 series
 - `gpt-4.1-mini` - Efficient GPT-4.1 variant
 - `gpt-4o` - Multimodal model with vision capabilities
 - `gpt-4o-mini` - Faster, more affordable multimodal option
-- `o3` - Latest reasoning-focused model
-- `o1` - Advanced reasoning model
+- `o4` - Latest reasoning-focused model
+- `o3` - Advanced reasoning model
+- `o1` - Original reasoning model
 
 For the most up-to-date model list, see [OpenAI's models documentation](https://platform.openai.com/docs/models).
 
@@ -158,6 +156,37 @@ const customProvider = new OpenAIModelProvider({
 <Callout type="info" title="Future OpenAI Provider Enhancement">
 We plan to add a new OpenAI provider based on the new Response API that will support full document processing capabilities, while keeping the current Chat Completion-based provider for broader compatibility with OpenAI-compatible models.
 </Callout>
+
+### Cloudflare AI Gateway
+
+Cloudflare AI Gateway provides a unified proxy for multiple AI providers with built-in caching, rate limiting, and analytics:
+
+```typescript
+import { cloudflareGateway } from '@zypher/agent';
+
+const cfProvider = cloudflareGateway({
+  accountId: Deno.env.get('CLOUDFLARE_ACCOUNT_ID')!,
+  gatewayName: 'my-gateway',
+  model: 'anthropic/claude-sonnet-4', // Format: provider/model
+  apiKey: Deno.env.get('ANTHROPIC_API_KEY')!, // API key for the underlying provider
+});
+```
+
+**Supported provider prefixes:**
+- `anthropic/` - Anthropic Claude models (e.g., `anthropic/claude-sonnet-4-5-20250929`)
+- `openai/` - OpenAI GPT models (e.g., `openai/gpt-5.2`)
+- `google/` - Google Gemini models
+- `grok/` - xAI Grok models
+- `deepseek/` - DeepSeek models
+
+**Benefits:**
+- **Unified endpoint** - Single gateway for multiple providers
+- **Built-in caching** - Reduce costs with automatic response caching
+- **Analytics** - Monitor usage across all providers
+- **Rate limiting** - Protect against overuse
+- **Failover** - Automatic fallback between providers
+
+For setup instructions, see [Cloudflare AI Gateway documentation](https://developers.cloudflare.com/ai-gateway/).
 
 ## Using with ZypherAgent
 
