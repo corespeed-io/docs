@@ -1,38 +1,28 @@
 ---
 title: Built-in Interceptors
-description: Pre-built interceptors for common agent control patterns including token continuation, error detection, and tool execution
+description: Zypher Agent provides simple factory functions to create common interceptors. These handle the most frequent needs in agent development and can be used immediately without custom implementation.
 ---
 
-# Built-in Interceptors
-
-Zypher Agent comes with several pre-built interceptors for common control patterns. These interceptors handle the most frequent needs in agent development and can be used immediately without custom implementation.
-
-## MaxTokensInterceptor
+## continueOnMaxTokens()
 
 Automatically continues conversations when responses are truncated due to token limits:
 
 ```typescript
-import { MaxTokensInterceptor } from '@zypher/agent';
+import { createZypherAgent, continueOnMaxTokens } from "@zypher/agent";
 
-const tokenInterceptor = new MaxTokensInterceptor({
-  // Enable automatic continuation
-  enabled: true,
-  
-  // Custom message to send when continuing  
-  continueMessage: "Please continue",
-  
-  // Maximum number of continuations to prevent loops
-  maxContinuations: 5,
+const agent = await createZypherAgent({
+  model: "claude-sonnet-4-5-20250929",
+  interceptors: [
+    continueOnMaxTokens(5), // Limit continuations (default: Infinity)
+  ],
 });
-
-loopInterceptorManager.register(tokenInterceptor);
 ```
 
 **How it works:**
 - Monitors the `stopReason` from LLM responses
-- When `stopReason` is `"max_tokens"`, automatically adds a continuation message
+- When `stopReason` is `"max_tokens"`, returns `{ complete: false }` to continue the loop
 - Prevents infinite loops by limiting maximum continuations
-- Uses a simple "Continue" message by default to prompt the agent to resume
+- The agent automatically receives a continuation prompt
 
 **Common use cases:**
 - **Long responses** - Automatically continue when agent responses are cut off
@@ -42,155 +32,216 @@ loopInterceptorManager.register(tokenInterceptor);
 ### Configuration Options
 
 ```typescript
-interface MaxTokensInterceptorOptions {
-  enabled?: boolean;           // Enable/disable the interceptor
-  continueMessage?: string;    // Custom continuation message
-  maxContinuations?: number;   // Limit to prevent infinite loops
-}
+continueOnMaxTokens(maxContinuations?: number)
+// maxContinuations: Maximum continuations before stopping (default: Infinity)
 ```
 
-## ErrorDetectionInterceptor
+## errorDetector()
 
-Detects and handles code errors using configurable error detectors:
+Runs a command to detect errors and feeds them back to the agent for automatic fixing:
 
 ```typescript
-import { 
-  ErrorDetectionInterceptor,
-  TypeScriptErrorDetector,
-  ESLintErrorDetector 
-} from '@zypher/agent';
+import { createZypherAgent, errorDetector } from "@zypher/agent";
 
-const errorInterceptor = new ErrorDetectionInterceptor(true);
+const agent = await createZypherAgent({
+  model: "claude-sonnet-4-5-20250929",
+  interceptors: [
+    // TypeScript/Deno type checking
+    errorDetector("deno", ["check", "."]),
 
-// Register built-in error detectors
-errorInterceptor.registerDetector(new TypeScriptErrorDetector());
-errorInterceptor.registerDetector(new ESLintErrorDetector());
+    // Linting
+    errorDetector("deno", ["lint"]),
 
-// Register custom error detector
-errorInterceptor.registerDetector({
-  name: 'jest-tests',
-  description: 'Detects failing Jest tests',
-  
-  async isApplicable(): Promise<boolean> {
-    try {
-      const packageJson = JSON.parse(await Deno.readTextFile('./package.json'));
-      return !!(packageJson.scripts?.test || packageJson.devDependencies?.jest);
-    } catch {
-      return false;
-    }
-  },
-  
-  async detect(): Promise<string | null> {
-    try {
-      const cmd = new Deno.Command('npm', { args: ['test', '--', '--passWithNoTests'] });
-      await cmd.output();
-      return null; // Tests passed
-    } catch (error) {
-      return `Test failures detected:\n${error.message}`;
-    }
-  }
+    // Node.js projects
+    errorDetector("npm", ["run", "typecheck"]),
+    errorDetector("npm", ["run", "lint"]),
+
+    // Run tests
+    errorDetector("npm", ["test"]),
+  ],
 });
-
-loopInterceptorManager.register(errorInterceptor);
 ```
 
-**Built-in error detectors:**
-- **TypeScriptErrorDetector** - Detects TypeScript compilation errors using `tsc --noEmit`
-- **ESLintErrorDetector** - Detects code style and quality issues using ESLint
+**How it works:**
+1. After each agent response, runs the specified command
+2. If the command exits with a non-zero code, captures stderr/stdout
+3. Returns `{ complete: false, reason: errorOutput }` to inject errors into conversation
+4. Agent sees the errors and attempts to fix them
+5. Loop continues until errors are resolved or max iterations reached
+6. If command succeeds (exit code 0), returns `{ complete: true }`
 
-**Custom error detector interface:**
-1. **name** - Unique identifier for the detector
-2. **description** - Human-readable description of what it detects
-3. **isApplicable()** - Check if detector should run (e.g., project has TypeScript config)
-4. **detect()** - Run detection and return error message or null if no errors
-
-### Managing Error Detectors
+### Common Error Detection Patterns
 
 ```typescript
-// Register multiple detectors
-errorInterceptor.registerDetector(typescriptDetector);
-errorInterceptor.registerDetector(eslintDetector);
-errorInterceptor.registerDetector(testDetector);
+// Deno projects
+errorDetector("deno", ["check", "."]),        // Type checking
+errorDetector("deno", ["lint"]),              // Linting
+errorDetector("deno", ["test"]),              // Tests
 
-// View registered detectors
-console.log(errorInterceptor.registeredDetectors);
-// ['typescript', 'eslint', 'test']
+// Node.js projects (npm)
+errorDetector("npm", ["run", "build"]),       // Build
+errorDetector("npm", ["run", "typecheck"]),   // TypeScript
+errorDetector("npm", ["run", "lint"]),        // ESLint
+errorDetector("npm", ["test"]),               // Tests
 
-// Remove specific detector
-errorInterceptor.unregisterDetector('eslint');
+// Node.js projects (pnpm/yarn)
+errorDetector("pnpm", ["typecheck"]),
+errorDetector("yarn", ["lint"]),
 
-// Clear all detectors
-errorInterceptor.clearDetectors();
+// Python projects
+errorDetector("python", ["-m", "mypy", "."]), // Type checking
+errorDetector("python", ["-m", "pytest"]),    // Tests
+errorDetector("ruff", ["check", "."]),        // Linting
 
-// Enable/disable entire interceptor
-errorInterceptor.enabled = false;
+// Rust projects
+errorDetector("cargo", ["check"]),            // Type checking
+errorDetector("cargo", ["clippy"]),           // Linting
+errorDetector("cargo", ["test"]),             // Tests
+
+// Go projects
+errorDetector("go", ["build", "./..."]),      // Build
+errorDetector("go", ["test", "./..."]),       // Tests
+errorDetector("golangci-lint", ["run"]),      // Linting
+
+// Custom scripts
+errorDetector("./scripts/validate.sh", []),
+errorDetector("make", ["check"]),
 ```
 
-## ToolExecutionInterceptor
+### Multiple Error Detectors
 
-Handles tool execution when the LLM requests tool calls:
+You can chain multiple error detectors. They run in order, and the first one to detect an error will trigger the agent to fix it:
 
 ```typescript
-import { ToolExecutionInterceptor } from '@zypher/agent';
+const agent = await createZypherAgent({
+  model: "claude-sonnet-4-5-20250929",
+  interceptors: [
+    // First check types
+    errorDetector("deno", ["check", "."]),
 
-const toolInterceptor = new ToolExecutionInterceptor(
-  mcpServerManager,
-  async (name, args, options) => {
-    // Optional approval handler
-    console.log(`Agent wants to use tool: ${name}`);
-    console.log('Arguments:', args);
-    
+    // Then check linting
+    errorDetector("deno", ["lint"]),
+
+    // Finally run tests
+    errorDetector("deno", ["test"]),
+  ],
+});
+```
+
+<Callout type="info" title="Interceptor Order">
+Error detectors run in the order you specify. If the first detector finds errors, subsequent detectors won't run until those errors are fixed. This creates a natural priority: fix type errors before lint errors, fix lint errors before running tests.
+</Callout>
+
+## Tool Execution (Automatic)
+
+Tool execution is handled automatically by Zypher Agent. You don't need to add any interceptor for tools to work.
+
+When the LLM requests a tool call:
+1. Zypher automatically executes the tool
+2. Results are added to the conversation
+3. The loop continues for the agent to process results
+
+### Tool Approval Handler
+
+If you need to approve tools before execution, configure it in `createZypherAgent`:
+
+```typescript
+const agent = await createZypherAgent({
+  model: "claude-sonnet-4-5-20250929",
+  tools: [...createFileSystemTools()],
+
+  // Optional: Custom tool approval
+  toolApprovalHandler: async (toolName, input, options) => {
     // Auto-approve safe tools
-    const safelist = ['read_file', 'list_directory', 'search'];
-    if (safelist.includes(name)) {
+    const safeTools = ["read_file", "list_directory", "grep_search"];
+    if (safeTools.includes(toolName)) {
       return true;
     }
-    
-    // Require approval for potentially dangerous tools
-    const dangerous = ['run_command', 'write_file', 'delete'];
-    if (dangerous.includes(name)) {
-      return await promptForApproval(`Allow ${name}?`);
-    }
-    
-    return true; // Allow by default
-  }
-);
 
-loopInterceptorManager.register(toolInterceptor);
+    // Require approval for write operations
+    console.log(`Tool: ${toolName}`);
+    console.log(`Input: ${JSON.stringify(input, null, 2)}`);
+
+    // Your approval logic here (prompt user, check policy, etc.)
+    return await promptUserForApproval();
+  },
+});
 ```
-
-**Key features:**
-- **Automatic execution** - Runs tool calls requested by the LLM
-- **Approval workflow** - Optional human-in-the-loop for sensitive operations
-- **Error handling** - Graceful handling of tool failures
-- **Result forwarding** - Adds tool results back to conversation context
 
 ### Tool Approval Patterns
 
 ```typescript
 // Always approve (default behavior)
-const autoApprove: ToolApprovalHandler = () => Promise.resolve(true);
+toolApprovalHandler: () => Promise.resolve(true),
 
 // Interactive approval
-const interactiveApproval: ToolApprovalHandler = async (name, args) => {
-  const response = prompt(`Approve tool ${name}? (y/n)`);
-  return response?.toLowerCase() === 'y';
-};
+toolApprovalHandler: async (name, input) => {
+  const response = prompt(`Approve ${name}? (y/n)`);
+  return response?.toLowerCase() === "y";
+},
 
 // Policy-based approval
-const policyBasedApproval: ToolApprovalHandler = async (name, args) => {
-  // Check against security policy
-  if (name === 'run_command') {
-    const command = args.command as string;
-    const bannedCommands = ['rm', 'del', 'format', 'sudo'];
-    
-    return !bannedCommands.some(banned => 
-      command.toLowerCase().includes(banned)
-    );
+toolApprovalHandler: async (name, input) => {
+  const dangerousTools = ["run_terminal_cmd", "delete_file"];
+
+  if (dangerousTools.includes(name)) {
+    // Check command for dangerous patterns
+    if (name === "run_terminal_cmd") {
+      const cmd = (input as { command: string }).command;
+      const blocked = ["rm -rf", "sudo", "format"];
+      return !blocked.some((b) => cmd.includes(b));
+    }
+    return false; // Block other dangerous tools
   }
-  
-  return true;
-};
+
+  return true; // Allow safe tools
+},
+```
+
+## Combining Interceptors
+
+Here's a complete example combining multiple interceptors:
+
+```typescript
+import {
+  createZypherAgent,
+  continueOnMaxTokens,
+  errorDetector,
+} from "@zypher/agent";
+import { createFileSystemTools, RunTerminalCmdTool } from "@zypher/agent/tools";
+
+const agent = await createZypherAgent({
+  model: "claude-sonnet-4-5-20250929",
+  tools: [...createFileSystemTools(), RunTerminalCmdTool],
+  config: {
+    maxIterations: 25,
+    maxTokens: 8192,
+  },
+  interceptors: [
+    // Handle truncated responses
+    continueOnMaxTokens(),
+
+    // Type checking
+    errorDetector("deno", ["check", "."]),
+
+    // Linting
+    errorDetector("deno", ["lint"]),
+  ],
+});
+
+// Run a coding task - agent will automatically fix type/lint errors
+const events$ = agent.runTask(
+  "Add a new function to utils.ts that validates email addresses"
+);
+
+for await (const event of eachValueFrom(events$)) {
+  if (event.type === "text") {
+    process.stdout.write(event.content);
+  }
+  if (event.type === "interceptor_result") {
+    console.log(`\n[${event.interceptorName}]: ${event.result.reason || "OK"}`);
+  }
+}
 ```
 
 ---
