@@ -46,90 +46,21 @@ import { createZypherAgent, errorDetector } from "@zypher/agent";
 const agent = await createZypherAgent({
   model: "claude-sonnet-4-5-20250929",
   interceptors: [
-    // TypeScript/Deno type checking
-    errorDetector("deno", ["check", "."]),
-
-    // Linting
-    errorDetector("deno", ["lint"]),
-
-    // Node.js projects
-    errorDetector("npm", ["run", "typecheck"]),
-    errorDetector("npm", ["run", "lint"]),
-
-    // Run tests
-    errorDetector("npm", ["test"]),
+    errorDetector("deno", ["check", "."]),  // Type checking
+    errorDetector("deno", ["lint"]),         // Linting
+    errorDetector("deno", ["test"]),         // Tests
   ],
 });
 ```
 
 **How it works:**
 1. After each agent response, runs the specified command
-2. If the command exits with a non-zero code, captures stderr/stdout
-3. Returns `{ complete: false, reason: errorOutput }` to inject errors into conversation
-4. Agent sees the errors and attempts to fix them
-5. Loop continues until errors are resolved or max iterations reached
-6. If command succeeds (exit code 0), returns `{ complete: true }`
-
-### Common Error Detection Patterns
-
-```typescript
-// Deno projects
-errorDetector("deno", ["check", "."]),        // Type checking
-errorDetector("deno", ["lint"]),              // Linting
-errorDetector("deno", ["test"]),              // Tests
-
-// Node.js projects (npm)
-errorDetector("npm", ["run", "build"]),       // Build
-errorDetector("npm", ["run", "typecheck"]),   // TypeScript
-errorDetector("npm", ["run", "lint"]),        // ESLint
-errorDetector("npm", ["test"]),               // Tests
-
-// Node.js projects (pnpm/yarn)
-errorDetector("pnpm", ["typecheck"]),
-errorDetector("yarn", ["lint"]),
-
-// Python projects
-errorDetector("python", ["-m", "mypy", "."]), // Type checking
-errorDetector("python", ["-m", "pytest"]),    // Tests
-errorDetector("ruff", ["check", "."]),        // Linting
-
-// Rust projects
-errorDetector("cargo", ["check"]),            // Type checking
-errorDetector("cargo", ["clippy"]),           // Linting
-errorDetector("cargo", ["test"]),             // Tests
-
-// Go projects
-errorDetector("go", ["build", "./..."]),      // Build
-errorDetector("go", ["test", "./..."]),       // Tests
-errorDetector("golangci-lint", ["run"]),      // Linting
-
-// Custom scripts
-errorDetector("./scripts/validate.sh", []),
-errorDetector("make", ["check"]),
-```
-
-### Multiple Error Detectors
-
-You can chain multiple error detectors. They run in order, and the first one to detect an error will trigger the agent to fix it:
-
-```typescript
-const agent = await createZypherAgent({
-  model: "claude-sonnet-4-5-20250929",
-  interceptors: [
-    // First check types
-    errorDetector("deno", ["check", "."]),
-
-    // Then check linting
-    errorDetector("deno", ["lint"]),
-
-    // Finally run tests
-    errorDetector("deno", ["test"]),
-  ],
-});
-```
+2. If the command fails (non-zero exit), injects error output into conversation
+3. Agent sees errors and attempts to fix them
+4. Loop continues until errors are resolved or max iterations reached
 
 <Callout type="info" title="Interceptor Order">
-Error detectors run in the order you specify. If the first detector finds errors, subsequent detectors won't run until those errors are fixed. This creates a natural priority: fix type errors before lint errors, fix lint errors before running tests.
+Error detectors run in order. If the first detector finds errors, subsequent detectors won't run until those errors are fixed.
 </Callout>
 
 ## Tool Execution (Automatic)
