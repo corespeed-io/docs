@@ -1,0 +1,212 @@
+---
+title: Skills
+description: Skills are reusable capability definitions that extend what your agent can do. They provide structured prompts, instructions, and context that help the agent perform specific tasks effectively.
+---
+
+## What are Skills?
+
+Skills are markdown files (typically `SKILL.md`) that define:
+
+- **Name and description** - What the skill does
+- **Instructions** - Detailed guidance for the agent
+- **Context** - Domain-specific knowledge
+- **Examples** - Sample inputs and outputs
+
+When loaded, skills are injected into the agent's system prompt, giving it specialized capabilities without modifying your code.
+
+## Skill Discovery
+
+Zypher Agent automatically discovers skills from multiple locations, with a clear precedence order:
+
+1. **Custom directories** - Paths specified via `customSkillsDirs` option (highest priority)
+2. **Project skills** - `.skills/` directory in the working directory
+3. **Global skills** - `~/.zypher/skills/` directory (lowest priority)
+
+Skills with the same name are deduplicated, with higher-priority locations taking precedence.
+
+```typescript
+const agent = await createZypherAgent({
+  model: "claude-sonnet-4-5-20250929",
+  config: {
+    skills: {
+      customSkillsDirs: ["./my-skills", "/shared/team-skills"],
+    },
+  },
+});
+```
+
+## Creating Skills
+
+### Basic Skill Format
+
+Create a subdirectory for your skill and add a `SKILL.md` file inside it (e.g., `.skills/code-reviewer/SKILL.md`):
+
+```markdown
+---
+name: code-reviewer
+description: Reviews code for quality, security, and best practices
+---
+
+# Code Review Skill
+
+You are an expert code reviewer. When reviewing code:
+
+## Review Checklist
+
+1. **Security** - Check for vulnerabilities (injection, XSS, etc.)
+2. **Performance** - Identify potential bottlenecks
+3. **Readability** - Ensure clear naming and structure
+4. **Best Practices** - Follow language-specific conventions
+5. **Error Handling** - Verify proper error management
+
+## Output Format
+
+Provide feedback in this format:
+
+### Summary
+Brief overview of the code quality.
+
+### Issues Found
+- [SEVERITY] Description of issue
+- Location: file:line
+
+### Suggestions
+Numbered list of improvements.
+
+### Overall Assessment
+Final verdict: APPROVE, REQUEST_CHANGES, or NEEDS_DISCUSSION
+```
+
+### Skill Metadata
+
+The frontmatter supports these fields:
+
+```yaml
+---
+name: skill-name          # Unique identifier (required)
+description: Brief desc   # Short description (required)
+license: MIT              # Optional license
+compatibility: ">=1.0.0"  # Optional version compatibility
+allowed-tools: "Bash,Read" # Optional allowed tools for the skill
+metadata:                 # Optional custom key-value pairs
+  category: code-quality
+  priority: high
+---
+```
+
+## Using Skills
+
+### Where to Place Skills
+
+Each skill must be in its own **subdirectory** containing a `SKILL.md` file. Place skill directories in one of these locations (in order of precedence):
+
+| Location | Description | Example Path |
+|----------|-------------|--------------|
+| Custom directories | Specified via `customSkillsDirs` option | `./my-skills/code-reviewer/SKILL.md` |
+| Project skills | `.skills/` in working directory | `./.skills/code-reviewer/SKILL.md` |
+| Global skills | `~/.zypher/skills/` | `~/.zypher/skills/code-reviewer/SKILL.md` |
+
+When skill names conflict, higher-precedence locations override lower ones.
+
+### How Skills are Loaded
+
+Skills are automatically discovered when you create an agent. The agent scans all configured skill directories for subdirectories containing `SKILL.md` files:
+
+```typescript
+const agent = await createZypherAgent({
+  model: "claude-sonnet-4-5-20250929",
+  config: {
+    skills: {
+      // Optional: add custom skill directories (highest precedence)
+      customSkillsDirs: ["./my-skills"],
+    },
+  },
+});
+
+// Skills are now loaded and available
+// List all discovered skills
+console.log(agent.skills.skills);
+
+// Get a specific skill by name
+const reviewSkill = agent.skills.getSkill("code-reviewer");
+console.log(reviewSkill?.metadata.description);
+
+// Get the formatted XML prompt (automatically included in system prompt)
+console.log(agent.skills.skillsPrompt);
+```
+
+### Skills in System Prompt
+
+Skills are automatically included in the agent's system prompt in XML format:
+
+```xml
+<available_skills>
+<skill>
+<name>code-reviewer</name>
+<description>Reviews code for quality, security, and best practices</description>
+<location>.skills/code-reviewer/SKILL.md</location>
+</skill>
+</available_skills>
+```
+
+The agent can then reference and use these skills when performing tasks. The `location` field shows the path to the skill file (relative if inside the working directory, absolute otherwise).
+
+## Skill Organization
+
+Each skill must be in its own subdirectory containing a `SKILL.md` file (or `skill.md` as fallback).
+
+### Project Skills
+
+For project-specific skills, create a `.skills/` directory in your project root:
+
+```text
+my-project/
+├── .skills/
+│   ├── code-reviewer/
+│   │   └── SKILL.md          # Code review skill
+│   ├── code-style/
+│   │   └── SKILL.md          # Code style guidelines
+│   └── api-design/
+│       └── SKILL.md          # API design patterns
+├── src/
+└── deno.json
+```
+
+### Global Skills
+
+For skills you want available across all projects:
+
+```text
+~/.zypher/
+└── skills/
+    ├── general-coding/
+    │   └── SKILL.md          # General coding assistance
+    ├── documentation/
+    │   └── SKILL.md          # Documentation writing
+    └── testing/
+        └── SKILL.md          # Test writing patterns
+```
+
+### Custom Skills
+
+Add custom skill directories for shared or project-specific skills:
+
+```typescript
+import { existsSync } from "node:fs";
+
+const skillDirs = ["/shared/team-skills"];
+if (existsSync("./tsconfig.json")) {
+  skillDirs.push("./skills/typescript");
+}
+
+const agent = await createZypherAgent({
+  model: "claude-sonnet-4-5-20250929",
+  config: {
+    skills: { customSkillsDirs: skillDirs },
+  },
+});
+```
+
+## Skill Examples
+
+Browse and discover community skills at [corespeed.ai/skills](https://corespeed.ai/skills).
