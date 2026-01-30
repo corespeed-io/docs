@@ -72,63 +72,6 @@ When the LLM requests a tool call:
 2. Results are added to the conversation
 3. The loop continues for the agent to process results
 
-### Tool Approval Handler
-
-If you need to approve tools before execution, configure it in `createZypherAgent`:
-
-```typescript
-const agent = await createZypherAgent({
-  model: "claude-sonnet-4-5-20250929",
-  tools: [...createFileSystemTools()],
-
-  // Optional: Custom tool approval
-  toolApprovalHandler: async (toolName, input, options) => {
-    // Auto-approve safe tools
-    const safeTools = ["read_file", "list_directory", "grep_search"];
-    if (safeTools.includes(toolName)) {
-      return true;
-    }
-
-    // Require approval for write operations
-    console.log(`Tool: ${toolName}`);
-    console.log(`Input: ${JSON.stringify(input, null, 2)}`);
-
-    // Your approval logic here (prompt user, check policy, etc.)
-    return await promptUserForApproval();
-  },
-});
-```
-
-### Tool Approval Patterns
-
-```typescript
-// Always approve (default behavior)
-toolApprovalHandler: () => Promise.resolve(true),
-
-// Interactive approval
-toolApprovalHandler: async (name, input) => {
-  const response = prompt(`Approve ${name}? (y/n)`);
-  return response?.toLowerCase() === "y";
-},
-
-// Policy-based approval
-toolApprovalHandler: async (name, input) => {
-  const dangerousTools = ["run_terminal_cmd", "delete_file"];
-
-  if (dangerousTools.includes(name)) {
-    // Check command for dangerous patterns
-    if (name === "run_terminal_cmd") {
-      const cmd = (input as { command: string }).command;
-      const blocked = ["rm -rf", "sudo", "format"];
-      return !blocked.some((b) => cmd.includes(b));
-    }
-    return false; // Block other dangerous tools
-  }
-
-  return true; // Allow safe tools
-},
-```
-
 ## Combining Interceptors
 
 Here's a complete example combining multiple interceptors:

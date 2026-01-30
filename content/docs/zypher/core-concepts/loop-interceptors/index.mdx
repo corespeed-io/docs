@@ -70,7 +70,7 @@ Tool execution (`executeTools()`) is **automatically prepended** to your interce
 
 Zypher Agent provides simple functions to create common interceptors:
 
-### `continueOnMaxTokens()`
+### `continueOnMaxTokens(maxContinuations?)`
 
 Automatically continues when responses are truncated due to token limits:
 
@@ -80,9 +80,7 @@ import { continueOnMaxTokens } from "@zypher/agent";
 const agent = await createZypherAgent({
   model: "claude-sonnet-4-5-20250929",
   interceptors: [
-    continueOnMaxTokens({
-      maxContinuations: 5, // Prevent infinite loops (default: 5)
-    }),
+    continueOnMaxTokens(5), // Limit to 5 continuations (default: Infinity)
   ],
 });
 ```
