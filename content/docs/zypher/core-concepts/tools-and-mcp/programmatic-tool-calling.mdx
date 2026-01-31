@@ -1,11 +1,7 @@
 ---
 title: Programmatic Tool Calling
-description: Enable LLMs to write and execute code that calls tools programmatically, reducing token usage by 85-98%
+description: Programmatic Tool Calling (PTC) enables LLMs to generate TypeScript code that runs in an isolated Deno Worker to orchestrate and execute tool calls. The code processes data internally, and only the final result is shared with the LLM. This approach can significantly reduce token usage for complex tasks that involve many tool calls or large datasets.
 ---
-
-# Programmatic Tool Calling
-
-Programmatic Tool Calling (PTC) enables LLMs to generate TypeScript code that runs in an isolated Deno Worker to orchestrate and execute tool calls. The code processes data internally, and only the final result is shared with the LLM. This approach can significantly reduce token usage for complex tasks that involve many tool calls or large datasets.
 
 ```
 Traditional:                         Programmatic Tool Calling (PTC):

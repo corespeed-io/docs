@@ -1,9 +1,10 @@
 {
-  "title": "Core Concepts", 
+  "title": "Core Concepts",
   "pages": [
     "llm-providers",
     "tools-and-mcp",
     "checkpoints",
-    "loop-interceptors"
+    "loop-interceptors",
+    "skills"
   ]
 }

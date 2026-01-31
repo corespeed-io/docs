@@ -1,0 +1,432 @@
+---
+title: HTTP/WebSocket API
+description: The @zypher/http package provides a framework-agnostic HTTP handler for running Zypher Agent as a web service. It includes REST endpoints for basic operations and WebSocket support for real-time task streaming.
+---
+
+## Quick Start
+
+### Installation
+
+```bash
+deno add jsr:@zypher/http
+```
+
+### Basic Server
+
+```typescript
+import { createZypherHandler } from "@zypher/http";
+import { createZypherAgent } from "@zypher/agent";
+import { createFileSystemTools } from "@zypher/agent/tools";
+
+// Create agent
+const agent = await createZypherAgent({
+  model: "claude-sonnet-4-5-20250929",
+  tools: [...createFileSystemTools()],
+});
+
+// Create HTTP handler
+const app = createZypherHandler({ agent });
+
+// Start server
+Deno.serve({ port: 8080 }, app.fetch);
+
+console.log("Zypher Agent running at http://localhost:8080");
+```
+
+### Run as CLI
+
+Run a server directly without writing code:
+
+```bash
+deno run -A jsr:@zypher/http -k YOUR_ANTHROPIC_API_KEY
+```
+
+Options:
+- `-k, --api-key` - Model provider API key
+- `-m, --model` - Model name (provider auto-detected)
+- `-p, --port` - Server port (default: 8080)
+
+## REST Endpoints
+
+### Health Check
+
+```http
+GET /health
+```
+
+Response:
+```json
+{ "status": "ok" }
+```
+
+### Get Message History
+
+```http
+GET /messages
+```
+
+Response:
+```json
+[
+  {
+    "role": "user",
+    "content": [{ "type": "text", "text": "Hello" }]
+  },
+  {
+    "role": "assistant",
+    "content": [{ "type": "text", "text": "Hi! How can I help?" }]
+  }
+]
+```
+
+### Clear Message History
+
+```http
+DELETE /messages
+```
+
+Response: `204 No Content`
+
+## WebSocket API
+
+### Connection
+
+Connect to the WebSocket endpoint:
+
+```typescript
+const ws = new WebSocket("ws://localhost:8080/task/ws", "zypher.v1");
+
+ws.onopen = () => {
+  console.log("Connected to Zypher Agent");
+};
+
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  console.log("Received:", data);
+};
+```
+
+### Client Messages
+
+#### Start a Task
+
+```typescript
+ws.send(JSON.stringify({
+  action: "startTask",
+  task: "Write a hello world function in TypeScript",
+  fileAttachments: ["file_abc123"] // Optional: attach files by ID
+}));
+```
+
+#### Resume a Task
+
+Resume and replay events from a previous task:
+
+```typescript
+ws.send(JSON.stringify({
+  action: "resumeTask",
+  lastEventId: "evt_abc123" // Resume from this event
+}));
+```
+
+#### Cancel a Task
+
+```typescript
+ws.send(JSON.stringify({
+  action: "cancelTask"
+}));
+```
+
+#### Approve/Reject Tool
+
+When a tool requires approval:
+
+```typescript
+ws.send(JSON.stringify({
+  action: "approveTool",
+  approved: true // or false to reject
+}));
+```
+
+### Server Messages
+
+#### Task Events
+
+Events are streamed in real-time as `HttpTaskEvent` objects:
+
+```typescript
+// Text streaming
+{
+  "eventId": "evt_001",
+  "type": "text",
+  "content": "Here's a "
+}
+
+// Tool use
+{
+  "eventId": "evt_002",
+  "type": "tool_use",
+  "toolUseId": "tu_123",
+  "toolName": "read_file",
+  "input": { "path": "./src/main.ts" }
+}
+
+// Tool result
+{
+  "eventId": "evt_003",
+  "type": "tool_use_result",
+  "toolUseId": "tu_123",
+  "toolName": "read_file",
+  "result": { "content": [{ "type": "text", "text": "file contents..." }] }
+}
+
+// Tool pending approval
+{
+  "eventId": "evt_004",
+  "type": "tool_use_pending_approval",
+  "toolUseId": "tu_456",
+  "toolName": "run_terminal_cmd",
+  "input": { "command": "npm install" }
+}
+
+// Task completed
+{
+  "eventId": "evt_010",
+  "type": "completed"
+}
+
+// Usage stats
+{
+  "eventId": "evt_011",
+  "type": "usage",
+  "usage": {
+    "input": { "total": 1500, "cacheRead": 500 },
+    "output": { "total": 800 },
+    "total": 2300
+  }
+}
+```
+
+#### Heartbeat
+
+Keep-alive messages sent every 30 seconds:
+
+```json
+{
+  "type": "heartbeat",
+  "timestamp": 1705320600000
+}
+```
+
+#### Errors
+
+```json
+{
+  "type": "error",
+  "error": "Task execution failed: ..."
+}
+```
+
+## MCP WebSocket API
+
+The HTTP handler also provides a WebSocket endpoint for real-time MCP (Model Context Protocol) server state updates.
+
+### Connection
+
+```typescript
+const ws = new WebSocket("ws://localhost:8080/mcp/ws", "zypher.mcp.v1");
+
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  console.log("MCP event:", data);
+};
+```
+
+### Server Events
+
+#### Initial State
+
+Sent immediately upon connection with current MCP server state:
+
+```json
+{
+  "type": "initial_state",
+  "servers": [
+    {
+      "serverId": "filesystem",
+      "server": { "id": "filesystem", "type": "command", ... },
+      "source": "agent",
+      "status": "connected",
+      "enabled": true
+    }
+  ]
+}
+```
+
+#### Server Updates
+
+```typescript
+// Server added
+{ "type": "server_added", "serverId": "...", "server": {...}, "source": "...", "status": "...", "enabled": true }
+
+// Server updated
+{ "type": "server_updated", "serverId": "...", "server": {...}, "source": "...", "status": "...", "enabled": true }
+
+// Server removed
+{ "type": "server_removed", "serverId": "..." }
+
+// Client status changed
+{ "type": "client_status_changed", "serverId": "...", "status": "connected" | "connecting" | "disconnected" | "error" }
+
+// Error
+{ "type": "error", "error": "Subscription error message" }
+```
+
+## Complete Example
+
+### Server
+
+```typescript
+// server.ts
+import { createZypherHandler } from "@zypher/http";
+import { createZypherAgent, errorDetector } from "@zypher/agent";
+import { createFileSystemTools, RunTerminalCmdTool } from "@zypher/agent/tools";
+
+const agent = await createZypherAgent({
+  model: "claude-sonnet-4-5-20250929",
+  tools: [...createFileSystemTools(), RunTerminalCmdTool],
+  interceptors: [
+    errorDetector("deno", ["check", "."]),
+  ],
+  config: {
+    maxIterations: 25,
+  },
+});
+
+const app = createZypherHandler({ agent });
+
+Deno.serve({ port: 8080 }, app.fetch);
+```
+
+### Client
+
+```typescript
+// client.ts
+const ws = new WebSocket("ws://localhost:8080/task/ws", "zypher.v1");
+
+ws.onopen = () => {
+  // Start a task
+  ws.send(JSON.stringify({
+    action: "startTask",
+    task: "Create a simple Express server with a /hello endpoint",
+  }));
+};
+
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+
+  switch (data.type) {
+    case "text":
+      process.stdout.write(data.content);
+      break;
+
+    case "tool_use":
+      console.log(`\n[Using tool: ${data.toolName}]`);
+      break;
+
+    case "tool_use_pending_approval":
+      console.log(`\n[Tool ${data.toolName} requires approval]`);
+      console.log(`Input: ${JSON.stringify(data.input)}`);
+      // Auto-approve for this example
+      ws.send(JSON.stringify({ action: "approveTool", approved: true }));
+      break;
+
+    case "completed":
+      console.log("\n\n[Task completed]");
+      ws.close();
+      break;
+
+    case "error":
+      console.error(`\n[Error: ${data.error}]`);
+      ws.close();
+      break;
+  }
+};
+```
+
+## Integration with Frameworks
+
+### Hono
+
+Mount the handler in an existing Hono app:
+
+```typescript
+import { Hono } from "hono";
+import { createZypherHandler } from "@zypher/http";
+
+const mainApp = new Hono();
+const agentHandler = createZypherHandler({ agent });
+
+// Mount at /api/agent
+mainApp.route("/api/agent", agentHandler);
+
+// Your other routes
+mainApp.get("/", (c) => c.text("Hello!"));
+
+Deno.serve(mainApp.fetch);
+```
+
+### Express (Node.js)
+
+Use the fetch handler with Express:
+
+```typescript
+import express from "express";
+import { createZypherHandler } from "@zypher/http";
+
+const app = express();
+const agentHandler = createZypherHandler({ agent });
+
+// Convert fetch handler to Express middleware
+app.use("/api/agent", async (req, res) => {
+  const response = await agentHandler.fetch(req);
+  // ... convert response to Express format
+});
+```
+
+## Configuration
+
+### ZypherHandlerOptions
+
+```typescript
+interface ZypherHandlerOptions {
+  /** The Zypher agent instance to expose via HTTP/WebSocket. */
+  agent: ZypherAgent;
+}
+```
+
+## Event Types Reference
+
+| Event Type | Description |
+|------------|-------------|
+| `text` | Streaming text content |
+| `message` | Complete message added to history |
+| `history_changed` | Message history was modified |
+| `tool_use` | Tool call initiated |
+| `tool_use_input` | Partial tool input (streaming) |
+| `tool_use_pending_approval` | Tool awaiting approval |
+| `tool_use_approved` | Tool was approved |
+| `tool_use_rejected` | Tool was rejected |
+| `tool_use_result` | Tool execution completed |
+| `tool_use_error` | Tool execution failed |
+| `tool_use_cancelled` | Tool was cancelled |
+| `interceptor_use` | Interceptor started |
+| `interceptor_result` | Interceptor completed |
+| `interceptor_error` | Interceptor failed |
+| `usage` | Token usage statistics |
+| `completed` | Task finished |
+| `cancelled` | Task was cancelled |
+
+---
+
+For complete API reference and type definitions, see the [@zypher/http documentation on JSR](https://jsr.io/@zypher/http).
