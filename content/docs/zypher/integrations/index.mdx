@@ -1,0 +1,74 @@
+---
+title: Integrations
+description: Zypher Agent can be deployed and integrated in multiple ways to fit your workflow. Choose the integration that best matches your use case.
+---
+
+```
+                     How will you use Zypher?
+                               │
+         ┌─────────────────────┼─────────────────────┐
+         │                     │                     │
+         ▼                     ▼                     ▼
+  Editor/IDE Integration  Web Service/API    Custom App/Script
+         │                     │                     │
+         ▼                     ▼                     ▼
+    @zypher/acp           @zypher/http        @zypher/agent
+         │                     │                     │
+         ├── Zed Editor        ├── REST API          ├── Full control
+         └── ACP clients       └── WebSocket         └── Custom Agent
+```
+
+## Integration Options
+
+### ACP (Agent Client Protocol)
+
+Integrate Zypher Agent with ACP-compatible clients like **Zed Editor**. ACP provides a standardized protocol for editors and IDEs to communicate with AI agents.
+
+**Best for:**
+- Editor/IDE integration
+- Interactive coding assistance
+- Real-time collaboration with AI
+
+### HTTP/WebSocket API
+
+Run Zypher Agent as an HTTP service with REST endpoints and WebSocket support for real-time streaming.
+
+**Best for:**
+- Web applications
+- Backend services
+- Custom UIs and dashboards
+- Multi-user deployments
+
+### Direct SDK Usage
+
+Use the Zypher Agent SDK directly in your Deno/Node.js applications for maximum control and customization.
+
+**Best for:**
+- Custom applications
+- CLI tools
+- Automation scripts
+- Embedded agents
+
+```typescript
+import { createZypherAgent } from "@zypher/agent";
+
+const agent = await createZypherAgent({
+  model: "claude-sonnet-4-5-20250929",
+});
+
+const events$ = agent.runTask("Your task here");
+```
+
+## Package Overview
+
+| Package | Purpose | Installation |
+|---------|---------|--------------|
+| `@zypher/agent` | Core SDK | `deno add jsr:@zypher/agent` |
+| `@zypher/acp` | ACP Protocol | `deno add jsr:@zypher/acp` |
+| `@zypher/http` | HTTP/WebSocket | `deno add jsr:@zypher/http` |
+| `@zypher/ui` | React Components | `deno add jsr:@zypher/ui` |
+| `@zypher/cli` | CLI Tool | `deno install jsr:@zypher/cli` |
+
+---
+
+Choose an integration above to get started, or explore the [Quick Start](/zypher/quick-start) for direct SDK usage.

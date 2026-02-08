@@ -1,0 +1,353 @@
+---
+title: ACP Integration
+description: ACP (Agent Client Protocol) enables Zypher Agent to work with ACP-compatible clients like Zed Editor. This provides a seamless AI coding assistant experience directly in your editor.
+---
+
+## What is ACP?
+
+ACP (Agent Client Protocol) is a standardized protocol for communication between editors/IDEs and AI agents. It defines how clients can:
+
+- Start agent sessions
+- Send prompts and receive responses
+- Handle tool calls and approvals
+- Manage MCP (Model Context Protocol) servers
+
+Learn more at [agentclientprotocol.com](https://agentclientprotocol.com).
+
+## Quick Start
+
+### Installation
+
+```bash
+deno add jsr:@zypher/acp
+```
+
+### Basic Server
+
+Create an ACP server that editors can connect to:
+
+```typescript
+import { runAcpServer } from "@zypher/acp";
+import { createZypherAgent } from "@zypher/agent";
+import { createFileSystemTools } from "@zypher/agent/tools";
+
+await runAcpServer(async (clientConfig) => {
+  // Create a new agent for each session
+  return await createZypherAgent({
+    model: "claude-sonnet-4-5-20250929",
+    tools: [...createFileSystemTools()],
+    workingDirectory: clientConfig.cwd,
+    mcpServers: clientConfig.mcpServers, // Pass through MCP servers from client
+  });
+});
+```
+
+### Run as CLI
+
+You can also run the ACP server directly:
+
+```bash
+deno run -A jsr:@zypher/acp
+```
+
+## API Reference
+
+### runAcpServer()
+
+The main function to start an ACP server:
+
+```typescript
+import { runAcpServer, type RunAcpServerOptions } from "@zypher/acp";
+
+await runAcpServer(
+  // Agent builder function - called for each new session
+  async (clientConfig: AcpClientConfig) => {
+    return await createZypherAgent({
+      model: "claude-sonnet-4-5-20250929",
+      workingDirectory: clientConfig.cwd,
+      mcpServers: clientConfig.mcpServers,
+    });
+  },
+  // Optional configuration
+  {
+    input: Deno.stdin.readable,    // Custom input stream
+    output: Deno.stdout.writable,  // Custom output stream
+    signal: abortController.signal, // Cancellation signal
+  }
+);
+```
+
+### AcpClientConfig
+
+Configuration passed from the client when creating a session:
+
+```typescript
+interface AcpClientConfig {
+  cwd: string;                    // Working directory for the session
+  mcpServers?: McpServerEndpoint[]; // MCP servers configured by the client
+}
+```
+
+### RunAcpServerOptions
+
+Optional configuration for the server:
+
+```typescript
+interface RunAcpServerOptions {
+  input?: ReadableStream<Uint8Array>;   // Default: Deno.stdin.readable
+  output?: WritableStream<Uint8Array>;  // Default: Deno.stdout.writable
+  signal?: AbortSignal;                 // For graceful shutdown
+}
+```
+
+## Zed Editor Integration
+
+### Setting Up Zed
+
+1. Open Zed Editor
+2. Go to Settings (⌘+,)
+3. Add the Zypher agent configuration to your settings
+
+### Configuration Example
+
+In your Zed settings (`~/.config/zed/settings.json`):
+
+```json
+{
+  "agent": {
+    "profiles": {
+      "zypher": {
+        "type": "custom",
+        "command": "deno",
+        "args": ["run", "-A", "jsr:@zypher/acp"],
+        "env": {
+          "ANTHROPIC_API_KEY": "sk-ant-...",
+          "ZYPHER_MODEL": "claude-sonnet-4-5-20250929"
+        }
+      }
+    }
+  }
+}
+```
+
+### Environment Variables
+
+The ACP server accepts the following environment variables through the `env` field:
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `ANTHROPIC_API_KEY` | For Claude models | Anthropic API key |
+| `OPENAI_API_KEY` | For GPT models | OpenAI API key |
+| `ZYPHER_MODEL` | Optional | Model identifier (defaults to `gpt-5.2`) |
+| `ZYPHER_HOME` | Optional | Data directory for history/checkpoints (defaults to `~/.zypher`) |
+
+### Model Selection
+
+The LLM provider is automatically detected from the model name:
+
+| Model Pattern | Provider | Required API Key |
+|---------------|----------|------------------|
+| `claude*`, `sonnet*`, `haiku*`, `opus*` | Anthropic | `ANTHROPIC_API_KEY` |
+| `gpt*` | OpenAI | `OPENAI_API_KEY` |
+| `gemini*` | Google AI | `OPENAI_API_KEY` (OpenAI-compatible) |
+| `deepseek*` | DeepSeek | `OPENAI_API_KEY` (OpenAI-compatible) |
+| `qwen*` | Alibaba DashScope | `OPENAI_API_KEY` (OpenAI-compatible) |
+| `grok*` | xAI | `OPENAI_API_KEY` (OpenAI-compatible) |
+
+**Examples:**
+- `claude-sonnet-4-5-20250929` → uses Anthropic with `ANTHROPIC_API_KEY`
+- `gpt-5.2` → uses OpenAI with `OPENAI_API_KEY`
+- `deepseek-chat` → uses DeepSeek API with `OPENAI_API_KEY`
+
+### Custom Agent Configuration
+
+Create a custom ACP server script for more control:
+
+```typescript
+// my-agent.ts
+import { runAcpServer } from "@zypher/acp";
+import { createZypherAgent, errorDetector } from "@zypher/agent";
+import { createFileSystemTools, RunTerminalCmdTool } from "@zypher/agent/tools";
+
+await runAcpServer(async (clientConfig) => {
+  return await createZypherAgent({
+    model: "claude-sonnet-4-5-20250929",
+    tools: [
+      ...createFileSystemTools(),
+      RunTerminalCmdTool,
+    ],
+    workingDirectory: clientConfig.cwd,
+    mcpServers: clientConfig.mcpServers,
+    interceptors: [
+      // Auto-fix TypeScript errors
+      errorDetector("deno", ["check", "."]),
+    ],
+    config: {
+      maxIterations: 25,
+      maxTokens: 8192,
+    },
+  });
+});
+```
+
+Then configure Zed to use your custom script:
+
+```json
+{
+  "agent": {
+    "profiles": {
+      "my-zypher": {
+        "type": "custom",
+        "command": "deno",
+        "args": ["run", "-A", "/path/to/my-agent.ts"],
+        "env": {
+          "ANTHROPIC_API_KEY": "sk-ant-..."
+        }
+      }
+    }
+  }
+}
+```
+
+## ACP Protocol Details
+
+### Session Lifecycle
+
+1. **Initialize** - Client connects, agent reports capabilities
+2. **New Session** - Client creates a session with working directory
+3. **Prompt** - Client sends prompts, agent streams responses
+4. **Cancel** - Client can cancel running prompts
+5. **Close** - Session ends when connection closes
+
+### Capabilities
+
+Zypher's ACP implementation supports:
+
+```typescript
+{
+  protocolVersion: 1,
+  agentInfo: {
+    name: "zypher-agent",
+    title: "Zypher Agent",
+    version: "x.x.x"  // Dynamic from package version
+  },
+  agentCapabilities: {
+    loadSession: false,
+    promptCapabilities: {
+      embeddedContext: true  // Supports embedded code context
+    },
+    mcpCapabilities: {
+      http: true,  // HTTP MCP servers
+      sse: true    // SSE MCP servers
+    }
+  }
+}
+```
+
+### MCP Server Passthrough
+
+Clients can configure MCP servers that get passed to the agent:
+
+```typescript
+// ACP client sends MCP server config
+{
+  mcpServers: [
+    {
+      name: "filesystem",
+      command: "npx",
+      args: ["-y", "@modelcontextprotocol/server-filesystem"]
+    },
+    {
+      name: "remote-api",
+      type: "http",
+      url: "https://api.example.com/mcp"
+    }
+  ]
+}
+
+// Agent receives converted config
+{
+  mcpServers: [
+    {
+      id: "filesystem",
+      type: "command",
+      command: { command: "npx", args: [...] }
+    },
+    {
+      id: "remote-api",
+      type: "remote",
+      remote: { url: "https://api.example.com/mcp" }
+    }
+  ]
+}
+```
+
+## Advanced Usage
+
+### Graceful Shutdown
+
+Handle shutdown signals properly:
+
+```typescript
+const controller = new AbortController();
+
+// Handle termination signals
+Deno.addSignalListener("SIGINT", () => controller.abort());
+Deno.addSignalListener("SIGTERM", () => controller.abort());
+
+await runAcpServer(agentBuilder, {
+  signal: controller.signal,
+});
+
+console.log("Server shut down gracefully");
+```
+
+### Custom Streams
+
+For testing or embedding:
+
+```typescript
+// Create custom streams for testing
+const inputBuffer = new TextEncoder().encode(JSON.stringify(testMessage));
+const input = new ReadableStream({
+  start(controller) {
+    controller.enqueue(inputBuffer);
+    controller.close();
+  },
+});
+
+const outputChunks: Uint8Array[] = [];
+const output = new WritableStream({
+  write(chunk) {
+    outputChunks.push(chunk);
+  },
+});
+
+await runAcpServer(agentBuilder, { input, output });
+```
+
+### Logging and Debugging
+
+Add logging to debug ACP communication:
+
+```typescript
+await runAcpServer(async (clientConfig) => {
+  console.error(`[ACP] New session: cwd=${clientConfig.cwd}`);
+  console.error(`[ACP] MCP servers: ${clientConfig.mcpServers?.length ?? 0}`);
+
+  const agent = await createZypherAgent({
+    model: "claude-sonnet-4-5-20250929",
+    workingDirectory: clientConfig.cwd,
+  });
+
+  return agent;
+});
+```
+
+<Callout type="info" title="Logging to stderr">
+When running as an ACP server, always log to `stderr` (not `stdout`), as `stdout` is used for ACP protocol communication.
+</Callout>
+
+---
+
+For more information about ACP, visit [agentclientprotocol.com](https://agentclientprotocol.com).
